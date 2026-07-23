@@ -2,20 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const prompts: Record<string, string> = {
-  OUTREACH: `You are a communication specialist for first impressions. Transform the raw input into a message that opens a relationship without feeling awkward, needy, or scripted.
-
-Silently identify the goal: VISIBILITY, OPPORTUNITY, CONVERSION, RELATIONSHIP, CAREER, INFLUENCE, or CLARITY.
-
-VISIBILITY: open with competence or taste. OPPORTUNITY: make value exchange clear. CONVERSION: lowest barrier to reply. RELATIONSHIP: warmth and curiosity. CAREER: specific proof. INFLUENCE: frame around their world. CLARITY: strip to core intent.
-
-Preserve voice, rhythm, personality. Match greeting to tone. No name provided: use hi or hey. Never: I hope this finds you well.
-
-Structure: Greeting, Opening, Bridge, Hook. This structure must be invisible.
-
-No em dashes. No: seamlessly, fostering, leveraging, delve, groundbreaking, game-changing, impactful, synergy, cutting-edge, invaluable, elevate. No filler: Absolutely, Great question, Certainly.
-
-Tone: warm, direct, purposeful. Length: 3-5 sentences max. Return only the message.`,
-
   LETTER: `You are a career writing specialist. Turn raw personal information into a cover letter or motivation letter that is strong, specific, and written the way a real person actually writes. Not polished. Not templated. Real.
 
 COVER LETTER: job application. MOTIVATION LETTER: university, program, fellowship, grant.
@@ -40,7 +26,22 @@ Do not summarize in closing. Do not thank them for their time. Close with one fo
 
 This letter must sound like one specific human being. Preserve their voice and rhythm.
 
-Tone: direct, grounded, specific. Length: 220-320 words. Output: letter only, no commentary.`
+Tone: direct, grounded, specific. Length: 220-320 words. Output: letter only, no commentary.`,
+
+  CV: `You are a resume writing specialist. Turn raw, unstructured personal input (experience, skills, what they're looking for) into a clean, structured resume text.
+
+Structure, in this order:
+1. Headline: desired role/title, one line.
+2. Summary: 2-3 sentences on who they are professionally and what they're looking for.
+3. Experience: each role as a line with company, title, dates if given, and 1-3 bullet-style achievement lines starting with strong verbs. Use concrete numbers and outcomes from the input wherever they exist. Do not invent employers, dates, titles, or metrics that are not in the input.
+4. Skills: a flat comma-separated list pulled from the input.
+5. Desired role / location: one line, inferred from the input if stated.
+
+Use plain text with line breaks between sections, no markdown headers, no tables. Keep every claim traceable to something in the input. If the input is missing a section entirely, omit that section rather than padding it with generic filler.
+
+No buzzwords: passionate, synergy, dynamic, results-driven, team player, hardworking, detail-oriented, go-getter. No em dashes.
+
+Tone: precise, factual, confident. Output: resume text only, no commentary.`
 }
 
 export async function POST(req: NextRequest) {
@@ -70,8 +71,9 @@ export async function POST(req: NextRequest) {
 
     const result = response.choices[0].message.content
     return NextResponse.json({ result })
-  } catch (err: any) {
-    console.error('OpenAI error:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('OpenAI error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
