@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { createClient } from '@/lib/supabase/server'
-import { checkAndConsumeUsage } from '@/lib/usage'
 import { searchJobs, type JobListing } from '@/lib/adzuna'
 import { searchJobsViaWeb } from '@/lib/websearch'
+
+const JOB_LIMIT = 10
 
 type RankedJob = {
   title: string
   company: string
   url: string
   reason: string
+  matchPercent: number
 }
 
 const EXTRACT_PROMPT =
   'Extract the desired job title and city/country from this resume. Respond with exactly two lines: "role: <one or two words>" then "location: <one or two words>". No other text.'
 
 const RANK_PROMPT = (limit: number) => `You are a career consultant. You are given a candidate's resume and a list of job vacancies.
-Pick the ${limit} vacancies that fit best, based on skills, experience, and the stated role. For each one, give a short explanation (1-2 sentences) of why it fits this specific candidate.
+Pick up to ${limit} vacancies that fit best, based on skills, experience, and the stated role. Only pick vacancies that actually appear in the list below — never invent one. If fewer than ${limit} are a genuine fit, return only those. For each one, give a one-sentence explanation of why it fits this specific candidate, and a match percentage (an integer 60-99) reflecting how strong the fit is. Keep every reason under 20 words so the response stays compact.
 
 Return the answer strictly as a JSON array:
-[{"title": "...", "company": "...", "url": "...", "reason": "..."}]
+[{"title": "...", "company": "...", "url": "...", "reason": "...", "matchPercent": 87}]
 with no text before or after the JSON.`
 
 function extractField(text: string, field: string): string {
@@ -27,13 +28,59 @@ function extractField(text: string, field: string): string {
   return match ? match[1].trim() : ''
 }
 
+// Salvages whatever complete {...} objects it can if the model's output got cut off
+// mid-array (a real, if infrequent, risk when max_tokens is reached).
 function parseRankedJobs(raw: string): RankedJob[] {
   const start = raw.indexOf('[')
-  const end = raw.lastIndexOf(']')
-  if (start === -1 || end === -1) {
+  if (start === -1) {
     throw new Error('No JSON array found in ranking response')
   }
-  return JSON.parse(raw.slice(start, end + 1))
+
+  const end = raw.lastIndexOf(']')
+  if (end > start) {
+    try {
+      return JSON.parse(raw.slice(start, end + 1))
+    } catch {
+      // fall through to salvage partial objects below
+    }
+  }
+
+  const body = raw.slice(start + 1)
+  const objects: RankedJob[] = []
+  let depth = 0
+  let objStart = -1
+
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]
+    if (ch === '{') {
+      if (depth === 0) objStart = i
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0 && objStart !== -1) {
+        try {
+          objects.push(JSON.parse(body.slice(objStart, i + 1)))
+        } catch {
+          // skip malformed object and keep going
+        }
+        objStart = -1
+      }
+    }
+  }
+
+  if (objects.length === 0) {
+    throw new Error('No JSON array found in ranking response')
+  }
+  return objects
+}
+
+// Adzuna descriptions in particular can run to hundreds of words; trimming keeps the
+// ranking prompt (and therefore its latency/cost/truncation risk) predictable.
+function trimForRanking(jobs: JobListing[]): JobListing[] {
+  return jobs.map((job) => ({
+    ...job,
+    description: job.description.length > 400 ? `${job.description.slice(0, 400)}...` : job.description,
+  }))
 }
 
 function dedupeByUrl(jobs: JobListing[]): JobListing[] {
@@ -46,14 +93,6 @@ function dedupeByUrl(jobs: JobListing[]): JobListing[] {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data } = await supabase.auth.getClaims()
-  const claims = data?.claims
-
-  if (!claims) {
-    return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
-  }
-
   const { resumeText, country, workFormat } = await req.json()
 
   if (!resumeText || typeof resumeText !== 'string') {
@@ -62,11 +101,6 @@ export async function POST(req: NextRequest) {
 
   const countryCode = typeof country === 'string' && country ? country : 'ANY'
   const format = typeof workFormat === 'string' && workFormat ? workFormat : 'ANY'
-
-  const usage = await checkAndConsumeUsage(supabase, claims.sub)
-  if (!usage.allowed) {
-    return NextResponse.json({ paywall: true })
-  }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -98,17 +132,21 @@ export async function POST(req: NextRequest) {
 
     const jobs: JobListing[] = dedupeByUrl([...adzunaJobs, ...webJobs])
 
+    if (jobs.length === 0) {
+      return NextResponse.json({ jobs: [] })
+    }
+
     const ranking = await client.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: RANK_PROMPT(usage.jobLimit) },
+        { role: 'system', content: RANK_PROMPT(JOB_LIMIT) },
         {
           role: 'user',
-          content: `RESUME:\n${resumeText}\n\nVACANCIES:\n${JSON.stringify(jobs)}`,
+          content: `RESUME:\n${resumeText}\n\nVACANCIES:\n${JSON.stringify(trimForRanking(jobs))}`,
         },
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 3500,
     })
 
     const rawRanking = ranking.choices[0].message.content ?? ''
@@ -121,7 +159,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not rank vacancies, try again' }, { status: 502 })
     }
 
-    return NextResponse.json({ jobs: rankedJobs.slice(0, usage.jobLimit) })
+    return NextResponse.json({ jobs: rankedJobs.slice(0, JOB_LIMIT) })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('match-jobs error:', message)

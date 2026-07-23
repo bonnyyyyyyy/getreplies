@@ -44,19 +44,30 @@ No buzzwords: passionate, synergy, dynamic, results-driven, team player, hardwor
 Tone: precise, factual, confident. Output: resume text only, no commentary.`
 }
 
+const TONE_INSTRUCTIONS: Record<string, string> = {
+  CONFIDENT: '\n\nRewrite the tone to be noticeably more confident and assertive, without adding new claims or buzzwords.',
+  CASUAL: '\n\nRewrite the tone to be noticeably more casual and conversational, while keeping every fact.',
+  SHORTER: '\n\nCut this by roughly a third. Keep only the strongest sentences and details.',
+}
+
 export async function POST(req: NextRequest) {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const { message, mode } = await req.json()
+  const { message, mode, tone } = await req.json()
 
   if (!message || !mode) {
     return NextResponse.json({ error: 'Missing message or mode' }, { status: 400 })
   }
 
-  const systemPrompt = prompts[mode]
+  const basePrompt = prompts[mode]
 
-  if (!systemPrompt) {
+  if (!basePrompt) {
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 })
   }
+
+  const systemPrompt = typeof tone === 'string' && TONE_INSTRUCTIONS[tone]
+    ? basePrompt + TONE_INSTRUCTIONS[tone]
+    : basePrompt
+
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   try {
     const response = await client.chat.completions.create({

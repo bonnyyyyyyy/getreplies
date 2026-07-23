@@ -26,7 +26,7 @@ export function useAuth() {
   return { user, loading }
 }
 
-export function SignInForm() {
+export function SignInForm({ label = 'SIGN IN TO FIND VACANCIES' }: { label?: string }) {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -63,7 +63,7 @@ export function SignInForm() {
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-sm">
-      <p className="text-xs text-[#666] tracking-widest text-center">SIGN IN TO FIND VACANCIES</p>
+      <p className="text-xs text-[#666] tracking-widest text-center">{label}</p>
       <input
         type="email"
         value={email}

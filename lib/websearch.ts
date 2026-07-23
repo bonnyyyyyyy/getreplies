@@ -2,13 +2,50 @@ import OpenAI from 'openai'
 import type { JobListing } from './adzuna'
 import { COUNTRIES } from './jobFilters'
 
+// Salvages whatever complete {...} objects it can if the model's output got cut off
+// mid-array, instead of discarding an otherwise-successful search.
 function parseJobListings(raw: string): JobListing[] {
   const start = raw.indexOf('[')
-  const end = raw.lastIndexOf(']')
-  if (start === -1 || end === -1) {
+  if (start === -1) {
     throw new Error('No JSON array found in web search response')
   }
-  return JSON.parse(raw.slice(start, end + 1))
+
+  const end = raw.lastIndexOf(']')
+  if (end > start) {
+    try {
+      return JSON.parse(raw.slice(start, end + 1))
+    } catch {
+      // fall through to salvage partial objects below
+    }
+  }
+
+  const body = raw.slice(start + 1)
+  const objects: JobListing[] = []
+  let depth = 0
+  let objStart = -1
+
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]
+    if (ch === '{') {
+      if (depth === 0) objStart = i
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0 && objStart !== -1) {
+        try {
+          objects.push(JSON.parse(body.slice(objStart, i + 1)))
+        } catch {
+          // skip malformed object and keep going
+        }
+        objStart = -1
+      }
+    }
+  }
+
+  if (objects.length === 0) {
+    throw new Error('No JSON array found in web search response')
+  }
+  return objects
 }
 
 export async function searchJobsViaWeb(
