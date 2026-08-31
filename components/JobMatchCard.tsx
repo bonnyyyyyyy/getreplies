@@ -10,6 +10,7 @@ type JobMatchCardProps = {
   matchPercent?: number
   saved?: boolean
   onToggleSave?: () => void
+  onMockInterview?: () => void
 }
 
 function guessDomain(company: string): string {
@@ -19,7 +20,7 @@ function guessDomain(company: string): string {
   return `${slug}.com`
 }
 
-export function JobMatchCard({ title, company, reason, url, matchPercent, saved, onToggleSave }: JobMatchCardProps) {
+export function JobMatchCard({ title, company, reason, url, matchPercent, saved, onToggleSave, onMockInterview }: JobMatchCardProps) {
   const [logoFailed, setLogoFailed] = useState(false)
 
   return (
@@ -66,14 +67,25 @@ export function JobMatchCard({ title, company, reason, url, matchPercent, saved,
         <p className="text-sm text-[#ccc] leading-relaxed">{reason}</p>
       </div>
 
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="self-start mt-1 px-5 py-2 bg-transparent border border-[#1f1f1f] text-xs font-semibold tracking-widest rounded-full text-white hover:border-[#333] transition-all"
-      >
-        VIEW VACANCY
-      </a>
+      <div className="flex flex-wrap items-center gap-2 mt-1">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2 bg-transparent border border-[#1f1f1f] text-xs font-semibold tracking-widest rounded-full text-white hover:border-[#333] transition-all"
+        >
+          VIEW VACANCY
+        </a>
+
+        {onMockInterview && (
+          <button
+            onClick={onMockInterview}
+            className="px-5 py-2 bg-transparent border border-[#1f1f1f] text-xs font-semibold tracking-widest rounded-full text-white hover:border-[#333] transition-all"
+          >
+            MOCK INTERVIEW
+          </button>
+        )}
+      </div>
     </div>
   )
 }

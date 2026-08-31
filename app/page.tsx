@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { JobMatchCard } from '@/components/JobMatchCard'
 import { ModeSubtitle } from '@/components/ModeSubtitle'
 import { ExampleChip } from '@/components/ExampleChip'
@@ -22,6 +23,7 @@ type RankedJob = {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [message, setMessage] = useState('')
   const [mode, setMode] = useState<Mode>('CV')
   const [result, setResult] = useState('')
@@ -117,6 +119,20 @@ export default function Home() {
     } finally {
       setJobsLoading(false)
     }
+  }
+
+  // Hands the CV and the vacancy over to the mock interview agent.
+  const handleMockInterview = (job: RankedJob) => {
+    try {
+      sessionStorage.setItem('gr_resume_text', result)
+      sessionStorage.setItem(
+        'gr_job_description',
+        `${job.title} at ${job.company}\n\n${job.reason}`
+      )
+    } catch {
+      // Storage blocked — /interview still works, the fields just start empty.
+    }
+    router.push('/interview')
   }
 
   return (
@@ -233,6 +249,7 @@ export default function Home() {
                   reason={job.reason}
                   url={job.url}
                   matchPercent={job.matchPercent}
+                  onMockInterview={() => handleMockInterview(job)}
                 />
               ))}
             </div>
