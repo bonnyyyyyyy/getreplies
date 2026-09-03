@@ -37,6 +37,11 @@ async function downloadPdf(text: string, filename: string) {
   doc.save(filename)
 }
 
+type Feedback = {
+  strengths: string[]
+  weaknesses: string[]
+}
+
 type ResultCardProps = {
   result: string
   onChangeResult: (text: string) => void
@@ -46,6 +51,7 @@ type ResultCardProps = {
   onFindJobs: () => void
   findJobsLoading: boolean
   findJobsDisabled: boolean
+  feedback?: Feedback
 }
 
 export function ResultCard({
@@ -57,6 +63,7 @@ export function ResultCard({
   onFindJobs,
   findJobsLoading,
   findJobsDisabled,
+  feedback,
 }: ResultCardProps) {
   const [copied, setCopied] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -162,13 +169,38 @@ export function ResultCard({
             ))}
           </div>
 
+          {feedback && (feedback.strengths.length > 0 || feedback.weaknesses.length > 0) && (
+            <div className="grid sm:grid-cols-2 gap-4 mt-1 pt-4 border-t border-[#1f1f1f]">
+              {feedback.strengths.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-[#555] tracking-widest">STRENGTHS</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {feedback.strengths.map((s, i) => (
+                      <li key={i} className="text-xs text-[#ccc] leading-relaxed">• {s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {feedback.weaknesses.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] text-[#555] tracking-widest">WEAK SPOTS</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {feedback.weaknesses.map((w, i) => (
+                      <li key={i} className="text-xs text-[#ccc] leading-relaxed">• {w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {showFindJobs && (
             <button
               onClick={onFindJobs}
               disabled={findJobsDisabled}
               className="mt-1 px-8 py-3 bg-white text-black text-sm font-semibold tracking-widest rounded-full hover:bg-[#e5e5e5] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {findJobsLoading ? 'SEARCHING...' : 'FIND MATCHING VACANCIES'}
+              {findJobsLoading ? 'SEARCHING...' : 'SEARCH FOR YOUR JOB'}
             </button>
           )}
         </>

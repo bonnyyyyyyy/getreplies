@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth, SignInForm } from '@/components/AuthGate'
+import { VoiceInputButton } from '@/components/VoiceInputButton'
 
 type Message = { role: 'interviewer' | 'candidate'; content: string }
 
@@ -225,6 +226,10 @@ export default function InterviewPage() {
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex flex-col gap-3">
+            <VoiceInputButton
+              disabled={sending || finishing}
+              onTranscript={(text) => setAnswer((prev) => (prev ? `${prev} ${text}` : text))}
+            />
             <textarea
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
