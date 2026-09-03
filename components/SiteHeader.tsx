@@ -6,7 +6,7 @@ export function SiteHeader() {
   const checkoutUrl = process.env.NEXT_PUBLIC_LEMON_SQUEEZY_URL || '#'
 
   return (
-    <header className="w-full flex items-center justify-between px-6 py-6">
+    <header className="w-full flex items-center justify-between px-6 py-6 bg-black">
       <Link href="/" className="text-xl font-bold tracking-tight text-white">
         GR.
       </Link>
