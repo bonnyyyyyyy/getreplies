@@ -5,15 +5,7 @@ import { TrustBar } from '@/components/TrustBar'
 
 export default function Home() {
   return (
-    <main className="relative z-0 min-h-screen bg-black text-white flex flex-col items-center px-6 py-16 overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 800px 600px at 100% 0%, rgba(255,255,255,0.16), transparent 65%)',
-        }}
-      />
-
+    <main className="relative min-h-screen text-white flex flex-col items-center px-6 py-16">
       <div className="flex flex-col items-center text-center mb-14">
         <h1 className="text-5xl font-bold tracking-tight">GetReplies</h1>
         <p className="mt-4 text-base text-[#ddd]">AI job hunter &amp; career strategist</p>

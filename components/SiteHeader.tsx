@@ -12,7 +12,7 @@ export function SiteHeader() {
   const onPricingPage = pathname?.startsWith('/pricing')
 
   return (
-    <header className="w-full flex items-center justify-between px-6 py-6 bg-black">
+    <header className="relative w-full flex items-center justify-between px-6 py-6">
       <Link href="/" className="text-xl font-bold tracking-tight text-white">
         GR.
       </Link>
